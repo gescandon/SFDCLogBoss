@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<head>
+<title="d3 tree: tips tricks"/>
+<script src="/js/jquery-1.8.2.js"></script>
+<script src="/d3/d3.min.js"></script>
+<style>
+path {
+	  stroke: #fff;
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+
+.node {
+  cursor: pointer;
+}
+.node circle { 
+	fill: #fff; 
+	stroke: steelblue; 
+	stroke-width: 3px;
+}
+.node text { 
+	font: 12px sans-serif; }
+.link {
+	fill: none; 
+	stroke: #ccc; 
+	stroke-width: 2px;
+}
+
+</style>
+<script>
+
+function log(msg) {
+	console.log(msg);
+}
+
+/*
+
+***** Vertical Tree: swapped X,Y on diagonal
+and on node.enter... translate()
+
+
+*/
+
+
+/**
+
+*** Process Data and format
+*/
+var data = [
+{Id:"abc1",Name:"Burlington Textiles Corp of America",ParentId:"",Revenue__c:1000},
+{Id:"abc2",Name:"Dickenson plc",ParentId:"abc1",Revenue__c:13000},
+{Id:"abc3",Name:"Edge Communications",ParentId:"",Revenue__c:6000},
+{Id:"abc4",Name:"Express Logistics and Transport",ParentId:"abc1",Revenue__c:9000},
+{Id:"abc5",Name:"GenePoint",ParentId:"abc2",Revenue__c:1000},
+{Id:"abc6",Name:"Grand Hotels & Resorts Ltd",ParentId:"abc2",Revenue__c:3000},
+{Id:"abc7",Name:"PyramId Construction Inc.",ParentId:"abc2",Revenue__c:16000},
+{Id:"abc8",Name:"sForce",ParentId:"abc3",Revenue__c:9000},
+{Id:"abc9",Name:"United Oil & Gas Corp.",ParentId:"abc3",Revenue__c:1000},
+{Id:"abc10",Name:"United Oil & Gas, Singapore",ParentId:"abc3",Revenue__c:3000},
+{Id:"abc11",Name:"United Oil & Gas, UK",ParentId:"abc3",Revenue__c:6000},
+{Id:"abc12",Name:"University of Arizona",ParentId:"abc3",Revenue__c:19000}
+];
+
+var treeData =  
+	{Name:"Accounts",
+	children: []}
+	;
+
+for (i = 0; i < data.length; i++) {
+    var parent = data[i];
+    parent.size = parent.Revenue__c;
+    parent.children = [];
+    for (j = 0; j < data.length; j++) {
+		var child = data[j];
+		if (child.ParentId === parent.Id) {
+			parent.children.push(child);
+		}
+	}
+	if (parent.ParentId === "") {
+		treeData.children.push(parent);
+	}
+}
+
+log("treeData");
+console.log(JSON.stringify(treeData,null," "));
+
+// Build image window
+
+var width = 960,
+    height = 700,
+    radius = Math.min(width, height) / 2;
+
+var padding = 5,
+	duration = 1000;
+
+var x = d3.scale.linear()
+    .range([0, 2 * Math.PI]);
+
+var y = d3.scale.sqrt()
+    .range([0, radius]);
+
+var color = d3.scale.category20c();
+function brightness(rgb) {
+  return rgb.r * .299 + rgb.g * .587 + rgb.b * .114;
+}
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("transform", "translate(" + width / 2 + "," + (height / 2 + 10) + ")");
+
+var partition = d3.layout.partition()
+    .value(function(d) { return d.size; });
+
+var arc = d3.svg.arc()
+    .startAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x))); })
+    .endAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx))); })
+    .innerRadius(function(d) { return Math.max(0, y(d.y)); })
+    .outerRadius(function(d) { return Math.max(0, y(d.y + d.dy)); });
+
+//d3.json("/mbostock/raw/4063550/flare.json", function(error, root) {
+// if (error) throw error;
+
+function flare(root) {
+  var nodes = partition.nodes(root);
+  var path = svg.selectAll("path")
+      .data(nodes)
+    .enter().append("path")
+      .attr("d", arc)
+      .attr("fill-rule","evenodd")
+      .style("fill", function(d) { return color((d.children ? d : d.parent).Name); })
+      .on("click", click);
+
+  var text = svg.selectAll("text").data(nodes);
+  var textEnter = text.enter().append("text")
+      .style("fill-opacity", 1)
+      .style("fill", function(d) {
+        return brightness(d3.rgb(color(d))) < 100 ? "#eee" : "#000";
+      })
+      .attr("text-anchor", function(d) {
+        return x(d.x + d.dx / 2) > Math.PI ? "end" : "start";
+      })
+      .attr("dy", ".2em")
+      .attr("transform", function(d) {
+        var multiline = (d.Name || "").split(" ").length > 1,
+            angle = x(d.x + d.dx / 2) * 180 / Math.PI - 90,
+            rotate = angle + (multiline ? -.5 : 0);
+        return "rotate(" + rotate + ")translate(" + (y(d.y) + padding) + ")rotate(" + (angle > 90 ? -180 : 0) + ")";
+      })
+      .on("click", click);
+
+textEnter.append("tspan")
+      .attr("x", 0)
+      .text(function(d) { return d.depth ? d.Name.split(" ")[0] : ""; });
+  textEnter.append("tspan")
+      .attr("x", 0)
+      .attr("dy", "1em")
+      .text(function(d) { return d.depth ? d.Name.split(" ")[1] || "" : ""; });
+
+  function click(d) {
+    path.transition()
+      .duration(duration)
+      .attrTween("d", arcTween(d));
+
+// Somewhat of a hack as we rely on arcTween updating the scales.
+    text.style("visibility", function(e) {
+          return isParentOf(d, e) ? null : d3.select(this).style("visibility");
+        })
+      .transition()
+        .duration(duration)
+        .attrTween("text-anchor", function(d) {
+          return function() {
+            return x(d.x + d.dx / 2) > Math.PI ? "end" : "start";
+          };
+        })
+        .attrTween("transform", function(d) {
+          var multiline = (d.Name || "").split(" ").length > 1;
+          return function() {
+            var angle = x(d.x + d.dx / 2) * 180 / Math.PI - 90,
+                rotate = angle + (multiline ? -.5 : 0);
+            return "rotate(" + rotate + ")translate(" + (y(d.y) + padding) + ")rotate(" + (angle > 90 ? -180 : 0) + ")";
+          };
+        })
+        .style("fill-opacity", function(e) { return isParentOf(d, e) ? 1 : 1e-6; })
+        .each("end", function(e) {
+          d3.select(this).style("visibility", isParentOf(d, e) ? null : "hidden");
+        });      
+  }
+};
+
+
+function isParentOf(p, c) {
+  if (p === c) return true;
+  if (p.children) {
+    return p.children.some(function(d) {
+      return isParentOf(d, c);
+    });
+  }
+  return false;
+}
+
+d3.select(self.frameElement).style("height", height + "px");
+
+// Interpolate the scales!
+function arcTween(d) {
+  var xd = d3.interpolate(x.domain(), [d.x, d.x + d.dx]),
+      yd = d3.interpolate(y.domain(), [d.y, 1]),
+      yr = d3.interpolate(y.range(), [d.y ? 20 : 0, radius]);
+  return function(d, i) {
+    return i
+        ? function(t) { return arc(d); }
+        : function(t) { x.domain(xd(t)); y.domain(yd(t)).range(yr(t)); return arc(d); };
+  };
+}
+
+flare(treeData);
+
+</script>
+</head>
+<body>
+</body>
+</html>

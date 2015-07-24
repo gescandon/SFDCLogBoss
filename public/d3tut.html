@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<head>
+<title="d3.js tutorial"/>
+<script src="/js/jquery-1.8.2.js"></script>
+<script src="/d3/d3.min.js"></script>
+<style>
+
+.chart rect {
+  fill: steelblue;
+}
+
+.chart text {
+  fill: white;
+  font: 10px sans-serif;
+  text-anchor: end;
+}
+
+</style>
+<script>
+var width = 420,
+    barHeight = 20;
+
+function type(d) {
+  d.value = +d.value; // coerce to number
+  return d;
+}
+
+  
+
+$( document ).ready(function() {
+
+	var div = document.createElement("div");
+	div.innerHTML = "Hello, world!";
+	document.body.appendChild(div); 
+	var section = d3.selectAll("section");
+
+	section.append("div")
+	    .html("First!");
+
+	section.append("div")
+	    .html("Second.");
+
+
+	var data = [];
+
+	var x = d3.scale.linear()
+	    .range([0, width]);
+
+	var chart = d3.select(".chart")
+	    .attr("width", width)
+
+d3.csv("chart2.csv")
+    .row(function(d) { return {key: d.key, value: +d.value}; })
+    .get(function(error, rows) { console.log(rows); });
+    
+	d3.csv("chart2.csv", type, function(error, data) {
+	  x.domain([0, d3.max(data, function(d) { return d.value; })]);
+
+		chart.attr("height", barHeight * data.length);
+
+
+		var bar = chart.selectAll("g")
+		    .data(data)
+		  .enter().append("g")
+		    .attr("transform", function(d, i) { return "translate(0," + i * barHeight + ")"; });
+
+		bar.append("rect")
+		    .attr("width", function(d) { return x(d.value); })
+		    .attr("height", barHeight - 1);
+
+		bar.append("text")
+		    .attr("x", function(d) { return x(d.value) - 3; })
+		    .attr("y", barHeight / 2)
+		    .attr("dy", ".35em")
+		    .text(function(d) { return d.value; });
+	});
+
+});
+</script>
+</head>
+<body>
+<section></section>
+
+<div id="madlib">This is where the story goes, and you replace_A1 goes here.</div>
+will a chart go here
+<svg class="chart"></svg>
+</body>
+</html>

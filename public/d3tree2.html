@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<head>
+<title="d3 tree: tips tricks"/>
+<script src="/js/jquery-1.8.2.js"></script>
+<script src="/d3/d3.min.js"></script>
+<style>
+.node {
+	cursor: pointer;
+}
+.node circle { 
+	fill: #fff; 
+	stroke: steelblue; 
+	stroke-width: 3px;
+}
+.node text { 
+	font: 12px sans-serif; }
+.link {
+	fill: none; 
+	stroke: #ccc; 
+	stroke-width: 2px;
+}
+
+</style>
+<script>
+
+function log(msg) {
+	console.log(msg);
+}
+
+/*
+
+***** Vertical Tree: swapped X,Y on diagonal
+and on node.enter... translate()
+
+
+*/
+
+
+/**
+
+*** Process Data and format
+*/
+var data = [
+{Id:"abc1",Name:"Burlington Textiles Corp of America",ParentId:""},
+{Id:"abc2",Name:"Dickenson plc",ParentId:"abc1"},
+{Id:"abc3",Name:"Edge Communications",ParentId:"abc1"},
+{Id:"abc4",Name:"Express Logistics and Transport",ParentId:"abc1"},
+{Id:"abc5",Name:"GenePoint",ParentId:"abc2"},
+{Id:"abc6",Name:"Grand Hotels & Resorts Ltd",ParentId:"abc2"},
+{Id:"abc7",Name:"PyramId Construction Inc.",ParentId:"abc2"},
+{Id:"abc8",Name:"sForce",ParentId:"abc3"},
+{Id:"abc9",Name:"United Oil & Gas Corp.",ParentId:"abc3"},
+{Id:"abc10",Name:"United Oil & Gas, Singapore",ParentId:"abc3"},
+{Id:"abc11",Name:"United Oil & Gas, UK",ParentId:"abc3"},
+{Id:"abc12",Name:"University of Arizona",ParentId:"abc3"}
+];
+
+var treeData =  [];
+
+for (i = 0; i < data.length; i++) {
+    var parent = data[i];
+    parent.children = [];
+    for (j = 0; j < data.length; j++) {
+		var child = data[j];
+		if (child.ParentId === parent.Id) {
+			parent.children.push(child);
+		}
+	}
+	if (parent.ParentId === "") {
+		treeData.push(parent);
+	}
+}
+
+log("treeData");
+console.log(JSON.stringify(treeData));
+
+// Build image window
+
+var margin = {
+	top: 20, 
+	right: 120, 
+	bottom: 20, 
+	left: 120}, 
+	width = 960 - margin.right - margin.left,
+	height = 500 - margin.top - margin.bottom;
+
+var i = 0;
+
+var tree = d3.layout.tree() .size([height, width]);
+
+var diagonal = d3.svg.diagonal() 
+	.projection(function(d) { return [d.x, d.y]; });
+
+var svg = d3.select("body").append("svg")
+	.attr("width", width + margin.right + margin.left) .attr("height", height + margin.top + margin.bottom)
+  	.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+root = treeData[0];
+
+update(root);
+
+function update(source) {
+	log("update " + source.Name);
+  // Compute the new tree layout.
+	var nodes = tree.nodes(source).reverse(), links = tree.links(nodes);
+  // Normalize for fixed-depth.
+	nodes.forEach(function(d) { d.y = d.depth * 180; });
+  // Declare the nodesâ€¦
+	var node = svg.selectAll("g.node")
+		.data(nodes, function(d) { return d.id || (d.id = ++i); });
+  // Enter the nodes.
+	var nodeEnter = node.enter().append("g") .attr("class", "node")
+		.attr("transform", function(d) {
+			return "translate(" + d.x + "," + d.y + ")"; })
+		.on("click", click);
+  	
+  	nodeEnter.append("circle")
+          .attr("r", 10)
+          .style("fill", "#fff");
+
+	nodeEnter.append("text") .attr("x", function(d) {
+		return d.children || d._children ? -13 : 13; }) .attr("dy", ".35em")
+			.attr("text-anchor", function(d) {
+				return d.children || d._children ? "end" : "start"; })
+					.text(function(d) { return d.Name; })
+					.style("fill-opacity", 1);
+
+// Declare the linksâ€¦
+	var link = svg.selectAll("path.link")
+		.data(links, function(d) { return d.target.id; });
+	// Enter the links.
+	link.enter().insert("path", "g")
+        .attr("class", "link")
+        .attr("d", diagonal);
+}
+
+function resetTree() {
+	update(treeDate[0]);
+}
+
+function click(d) { 
+	if (d.children) {
+    d._children = d.children;
+	d.children = null; 
+	} else {
+	d.children = d._children; d._children = null;
+	}
+	update(d); 
+}
+</script>
+</head>
+<body>
+<div id="controls">
+	<div id="reset" onclick="resetTree();">Reset</div>
+</div>
+<div id="container"></div>
+</body>
+</html>
