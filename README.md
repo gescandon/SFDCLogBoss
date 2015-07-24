@@ -12,3 +12,5 @@ Node tool for analyzing SFDC Log files
 ## Start the server from command line: node static.js
 ## Open your browser: localhost:8080
 ## Select a log file from the picklist
+
+http://screencast.com/t/WPbuMIQqx

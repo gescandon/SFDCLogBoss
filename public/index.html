@@ -93,13 +93,6 @@ function loadLog(selectedLog) {
   };
 
     function showSoqlDeets(objName) {
-      //$("#infovis").css("display","none");
-      // load selected soql details 
-      /*
-      var soqlList = reduce(function(s, x) {
-        return s + '<span class="link-stat"><span class="log-link">' + objCount[i].objName + '</span>: ' + objCount[i].objCount + '</span>'},
-        getSoqlList(objName), "");
-      */
       $("#soql-deets").html(sfdcLogParser.getSoqlList(objName));
       $("#soql-deets").css("display","block");  
     }
