@@ -1,38 +1,21 @@
 <html>
 <head>
-<title="SFDC Log Parser"/>
+<title="SFDC Log Boss"/>
+<link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 <style>
-
 .link-stat {
   display: block;
-  font-size: 14px;
+  font-size: 12px;
 }
 .log-link {
   display: inline;
-  font-size: 14px;
+  font-size: 12px;
   text-decoration: underline;
 }
 
 #soql-deets{
   text-align: left;
-  display: block;
-  font-size: 14px;
-  margin: 20px;
-  float: right;
-  width: 70%;
-}
-#header {
-  font-weight: bold;
-  font-size: 16px;
-  margin: 20px;
-}
-#soql-tots {
-  margin: 0 20px;
-  float: left;
-}
-#trigg-tots{
-  margin: 0 20px;
-  float: left;
+  padding: 5px;
 }
 #qn {
   margin-bottom: 10px;
@@ -40,17 +23,23 @@
 </style>
 </head>
 <body>
-<div id="header">
-  <div id="qn"></div>
-  <select id="logselect" name="loglist"></select>
+<div class="container">
+  <div class="row">
+    <div id="qn"><h3>SFDC Log Boss</h3></div>
+    <select id="logselect" name="loglist"></select>
+  </div>
+  <div class="row">
+    <div class="col-md-3" id="soql-tots"></div>
+    <div class="col-md-8" id="soql-deets"></div>
+  </div>
+  <div class="row">
+    <div id="trigg-tots"></div>
+    <div id="trigg-deets"></div>
+  </div>
 </div>
-<div id="soql-deets"></div>
-<div id="soql-tots"></div>
-<div style="clear:both"></div>
-<div id="trigg-tots"></div>
-<div id="trigg-deets"></div>
 </body>
 <script src="/js/jquery-2.1.4.min.js"></script>
+<script src="/bootstrap/js/bootstrap.min.js"></script>
 <script src="/js/sfdcLogParser.js"></script>
 <script>
 
@@ -78,7 +67,7 @@ function loadLog(selectedLog) {
         return s + x;},
         objCountArr, 0);
       log(soqlTotalCount);
-      $('#soql-tots').html('<h3>SOQL Object Count: ' + soqlTotalCount + '</h3>' + soqlCountList);
+      $('#soql-tots').html('<h5>SOQL Object Count: ' + soqlTotalCount + '</h5>' + soqlCountList);
 
       // update trigger totals
       var triggerCount = sfdcLogParser.getTriggerCount();
@@ -87,19 +76,16 @@ function loadLog(selectedLog) {
           return s + '<span class="link-stat">' + triggerCount[i].objName + ': <span class="log-link" onclick="showInfovis();">' + triggerCount[i].objCount + '</span></span>'},
           triggerCount, "");
 
-      $("#trigg-tots").html('<h3>Trigger Count</h3>' + trigCountList);
+      $("#trigg-tots").html('<h4>Trigger Count</h4>' + trigCountList);
 
     })
   };
 
     function showSoqlDeets(objName) {
       $("#soql-deets").html(sfdcLogParser.getSoqlList(objName));
-      $("#soql-deets").css("display","block");  
     }
 
 $( document ).ready(function() {
-  $("#qn").html('SFDC Log Boss');
-
   var jqxhr = $.ajax( "/loglisting" )
       .done(function(data ) {
       console.log(">> Log Listing: ");
