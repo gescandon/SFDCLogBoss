@@ -69,7 +69,7 @@ path.link {
 <div id="header">
   <div id="qn"></div>
   <select id="logselect" name="loglist"></select>
-  <span onclick="showRawLog();">Raw Log</span>
+  <div onclick="showRawLog();">Raw Log</div>
 </div>
 <div id="details"></div>
 <div id="soql-tots"></div>
@@ -286,6 +286,7 @@ function loadLog(selectedLog) {
 
   function showInfoVis() {
     log('showInfoVis');
+    document.location = "/?log=" + $( '#logselect' ).val();
     $("#details").html("why why why");
     //update(sfdcLogParser.getTree());
 
@@ -309,10 +310,17 @@ $( document ).ready(function() {
       }
     }
     $( 'select[name="loglist"]' ).append( optionsAsString );
-    $( '#logselect' ).change(function() {
-      loadLog($( '#logselect' ).val())
-      });
-    })
+  })
+
+  $( '#logselect' ).change(function() {
+    loadLog($( '#logselect' ).val())
+    });
+
+  if (location.search && location.search.split("=")[1]) {
+    var pval = location.search.split("=")[1];
+    log("log: " + pval);
+    loadLog(pval);
+  }
 
 });
 </script>
