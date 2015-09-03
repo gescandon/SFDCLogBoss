@@ -11,14 +11,19 @@ function reduce(input, func) {
 
 
 // logpath is your local directory of logfiles
-var logpath = '/Users/gescandon/sfdcLogParser/logs';
-
-fs.readdir(logpath, function(err, files) {
-  if (err) {
-    return console.log(err);
-  }
-  global.logfiles = files;
-});
+var logpath = '/Users/gescandon/sfdcLogParser';
+global.logfiles;
+function getLogFiles() {
+  var result;
+  fs.readdir(logpath + '/logs', function(err, files) {
+    if (err) {
+      return console.log(err);
+    }
+    global.logfiles = files;
+    result = files;
+  });  
+  return result;
+}
 
 
 //
@@ -36,10 +41,22 @@ require('http').createServer(function(request, response) {
       // return logs listing
       response.writeHead(200);
       response.end("" + global.logfiles);
+      //response.end("" + loglist);
     } else if (request.url.indexOf('/logs_') > -1) {
       var urlarr = request.url.split("_");
-      var fpath = logpath + urlarr[1];
+      var fpath = logpath + urlarr[0] + urlarr[1];
 
+      fs.readFile(fpath, 'utf8', function(err, data) {
+        if (err) {
+          return console.log(err);
+        }
+        response.writeHead(200);
+        response.end("" + data)
+      });
+
+    } else if (request.url.indexOf('/objmodelrelations') > -1) {
+      var fpath = logpath + '/sfdc_objModel.csv'
+      console.log(fpath);
       fs.readFile(fpath, 'utf8', function(err, data) {
         if (err) {
           return console.log(err);
@@ -50,6 +67,9 @@ require('http').createServer(function(request, response) {
 
     } else {
       file.serve(request, response);
+      var loglist = getLogFiles();
+      console.log('loglist1');
+      console.log(loglist);
     }
 
   }).resume();
