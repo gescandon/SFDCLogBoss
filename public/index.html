@@ -59,7 +59,7 @@
 
 path.link {
   fill: none;
-  stroke: #F2F2F2;
+  stroke: #C0C0C0;
   stroke-width: 0.5px;
 }
 
@@ -293,7 +293,7 @@ function loadLog(selectedLog) {
   }
 
   function showRawLog() {
-    $("#details").html(rawLog);      
+    $("#details").html('<pre>' + rawLog + '</pre>');      
   }
 
 $( document ).ready(function() {
