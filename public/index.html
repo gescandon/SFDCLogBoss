@@ -243,7 +243,7 @@ var rawLog;
 function loadLog(selectedLog) {
   $('#soql-tots').html('Loading log...');
   $('#trigg-tots').html('');
-  var rr = '/logs_/' + selectedLog;
+  var rr = '/loghome/' + selectedLog;
   log('Selected Log: ' + rr + '\n');
   //$( '#lograw').html(rr + "\n");
   var jqxhr = $.ajax( rr )

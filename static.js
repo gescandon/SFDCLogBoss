@@ -11,11 +11,11 @@ function reduce(input, func) {
 
 
 // logpath is your local directory of logfiles
-var logpath = '/Users/gescandon/sfdcLogParser';
+var logpath = '/Users/gescandon/sfdcLogParser/logs';
 global.logfiles;
 function getLogFiles() {
   var result;
-  fs.readdir(logpath + '/logs', function(err, files) {
+  fs.readdir(logpath, function(err, files) {
     if (err) {
       return console.log(err);
     }
@@ -42,8 +42,8 @@ require('http').createServer(function(request, response) {
       response.writeHead(200);
       response.end("" + global.logfiles);
       //response.end("" + loglist);
-    } else if (request.url.indexOf('/logs_') > -1) {
-      var urlarr = request.url.split("_");
+    } else if (request.url.indexOf('/loghome') > -1) {
+      var urlarr = request.url.split("loghome/");
       var fpath = logpath + urlarr[0] + urlarr[1];
 
       fs.readFile(fpath, 'utf8', function(err, data) {
