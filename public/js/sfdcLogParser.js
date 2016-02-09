@@ -1,30 +1,33 @@
 //sfdcLogParser.js
 
+
+var debugMode = true;
+
 var CHILD_COLOR = "#9ACEEB";
 var CHILDREN_COLOR = "#1DACD6";
 var HEAVY_COLOR = "#FFAACC";
 var TOO_HEAVY_COLOR = "#DD4492";
-var TRIGGER_COLOR = "#FF66CC";
-var HEAVY_TRIGGER_COLOR = "#FF66CC";
-var TOO_HEAVY_TRIGGER_COLOR = "#FF66CC";
-var TARGET_TRIGGER_COLOR = "#76FF7A";
+var TRIGGER_COLOR = "#F6CEE3";
+var HEAVY_TRIGGER_COLOR = "#F6CEE3";
+var TOO_HEAVY_TRIGGER_COLOR = "#F6CEE3";
+var TARGET_TRIGGER_COLOR = "#F6CEE3";
 
 
 var selectedTrigger = '__null__';
 
 var validEvents = {
-  CODE_UNIT_FINISHED:{name: "CODE_UNIT_FINISHED", type:"exit", color:"#FFFFFF"},
+  CODE_UNIT_FINISHED:{name: "CODE_UNIT_FINISHED", type:"exit", color:"#FFFFFF", opener:"CODE_UNIT_STARTED"},
   CODE_UNIT_STARTED:{name: "CODE_UNIT_STARTED", type:"entry", color:"#FFFFFF"},
-  EXECUTION_FINISHED:{name: "EXECUTION_FINISHED", type:"exit", color:"#ACE5EE"},
+  EXECUTION_FINISHED:{name: "EXECUTION_FINISHED", type:"exit", color:"#ACE5EE", opener:"EXECUTION_STARTED"},
   EXECUTION_STARTED:{name: "EXECUTION_STARTED", type:"entry", color:"#ACE5EE"},
   METHOD_ENTRY:{name: "METHOD_ENTRY", type:"entry", color:"#FFFFFF"},
-  METHOD_EXIT:{name: "METHOD_EXIT", type:"exit", color:"#FFFFFF"},
+  METHOD_EXIT:{name: "METHOD_EXIT", type:"exit", color:"#FFFFFF", opener:"METHOD_ENTRY"},
   SOQL_EXECUTE_BEGIN:{name: "SOQL_EXECUTE_BEGIN", type:"entry", color:"#FFFF00"},
-  SOQL_EXECUTE_END:{name: "SOQL_EXECUTE_END", type:"exit", color:"#FFFF00"},
+  SOQL_EXECUTE_END:{name: "SOQL_EXECUTE_END", type:"exit", color:"#FFFF00", opener:"SOQL_EXECUTE_BEGIN"},
   SOSL_EXECUTE_BEGIN:{name: "SOSL_EXECUTE_BEGIN", type:"entry", color:"#FFFF00"},
-  SOSL_EXECUTE_END:{name: "SOSL_EXECUTE_END", type:"exit", color:"#FFFF00"},
-  DML_BEGIN:{name: "DML_BEGIN", type:"entry", color:"#ACE5EE"},
-  DML_END:{name: "DML_END", type:"exit", color:"#ACE5EE"}
+  SOSL_EXECUTE_END:{name: "SOSL_EXECUTE_END", type:"exit", color:"#FFFF00", opener:"SOSL_EXECUTE_BEGIN"},
+  DML_BEGIN:{name: "DML_BEGIN", type:"entry", color:"#A9F5D0"},
+  DML_END:{name: "DML_END", type:"exit", color:"#A9F5D0", opener:"DML_BEGIN"}
 };
 
 if (!Array.prototype.last) {
@@ -35,6 +38,12 @@ if (!Array.prototype.last) {
 
 function log(msg) {
     console.log(msg);
+}  
+
+function debuglog(msg) {
+    if (debugMode) {
+    	console.log(msg);
+    }
 }  
 
 function reduce(fn, a, init)
@@ -168,6 +177,7 @@ sfdcLogParser  = {
 		  nnode.data["codeUnit"] = nnode.codeUnit;
 		  nnode.data["startline"] = startline;
 		  nnode.data["endline"] = endline;
+		  
 		  nnode.data["$area"] = 1;
 		  nnode.data["$dim"] = 1;
 		  try {
@@ -180,10 +190,11 @@ sfdcLogParser  = {
 		    }      
 		    nnode.color = nnode.data["$color"]
 		  } catch (e) {
-		    log('Color Exception: ' + e.name + ': ' + e.message); 
+		    log('Color Exception: ' + nnode.nodetype + ":: " +e.name + ': ' + e.message); 
 		    log(nnode.id);
 		    log(nnode.name);
 		  }
+
 		  sfdcLogParser.nodes[nnode.id] = nnode;
 		},
 	getSoqlObjectCount : function () {
@@ -340,7 +351,9 @@ sfdcLogParser  = {
 		      var id = elements[1];
 		      if (id != null) {
 		        var logevent = validEvents[id.trim()];
-		        if (logevent != null) {
+		        if (logevent == null) {
+		        	//debuglog('INVALID EVENT: ' + elements[1]);
+		        } else {
 		          // process log id
 		          if (logevent.type == "entry") {
 		            // push node start
@@ -351,7 +364,8 @@ sfdcLogParser  = {
 		            }
 		            if (logevent.name =="CODE_UNIT_STARTED") {
 		             //log(lines[i]);
-		            }		            if (prevOp == "entry") {
+		            }		            
+		            if (prevOp == "entry") {
 		              //log("parent push " + (idcntr-1));
 		              parentarr.push(idcntr-1);
 		            }
@@ -363,17 +377,55 @@ sfdcLogParser  = {
 		            // node close - add new node
 		            var sline = logevents.pop(1);
 		            var ssplit = sline.split("|");
-		            if (prevOp == "exit") {
-		              //log(" parent pop " + parentarr.last());
-		              parentarr.pop(1);
-		            }
-		            	var exitval;
-		            	try {
-		            		exitval = ssplit[2].trim();
-		            	} catch (e) {
-		            		exitval = ssplit;
+		            logevents.push(sline); // put it back on for now.
+
+		            var isExitPair = false;
+		            if (logevent.opener == ssplit[2]) {
+		            	isExitPair = true
+			         	if (logevent.name == 'METHOD_EXIT') {
+			         		isExitPair = false;
+		            		if (elements[2] == ssplit[3]) {
+		            			// matching numeric id
+		            			isExitPair = true;
+		            		}
+		            	} else if (logevent.name == 'CODE_UNIT_FINISHED'){
+			         		isExitPair = false;
+		            		if (elements[elements.length -1] == ssplit[ssplit.length - 1] ||
+		            			(ssplit[ssplit.length - 1].indexOf(elements[elements.length -1]) > 0)) {
+		            			isExitPair = true;
+
+		            		}
 		            	}
-		              sfdcLogParser.addNewNode(ssplit[0], exitval, sline, lines[i], parentarr.last());              
+		            }
+		            
+		            if (isExitPair) {
+		            sline = logevents.pop(1);
+
+		            try {
+			            if (prevOp == "exit") {
+			              // ignore lone exits.
+			              parentarr.pop(1);
+			            }
+			            	var exitval;
+			            	try {
+			            		exitval = ssplit[2].trim();
+			            	} catch (e) {
+			            		exitval = ssplit;
+			            	}
+			         	//debuglog('ENTRY EXIT: ' + logevent.name + ':' + logevent.type);
+
+			            sfdcLogParser.addNewNode(ssplit[0], exitval, sline, lines[i], parentarr.last());
+		            } catch (e) {
+			         	debuglog('** ENTRY EXIT (missing entry): ' + logevent.name + ':' + logevent.type);
+			            sfdcLogParser.addNewNode(ssplit[0],logevent.name, logevent.type, 'missing entry line: ' + lines[i], parentarr.last());
+		            }
+		        } else {
+		        	// record singular exist event
+			         	debuglog('SINGULAR EXIT: ' + logevent.name + ": " + logevent.opener + ": " + elements[0] + ": " + elements[elements.length -1] + " != " + ssplit[ssplit.length - 1]);
+			            sfdcLogParser.addNewNode(ssplit[0], logevent.name, logevent.type, 'singular exit: ' + lines[i], parentarr.last());		        	
+		        }
+
+
 		            prevOp = logevent.type;
 		          }
 		        }
@@ -381,6 +433,8 @@ sfdcLogParser  = {
 		    }
 		  }
 
+	  	log('logevents not close: ' + logevents.length);
+	  	
 		  if (logevents.length > 0) {
 		    // close remaing nodes
 		    for (var i=0; i<= logevents.length; i++) {
@@ -396,6 +450,7 @@ sfdcLogParser  = {
 		      sfdcLogParser.addNewNode(ssplit[0], exitval, sline, 'none', parentarr.last());      
 		    }
 		  }
+		  
 	},
 	rawData : function (data) {
 		return '<pre>' + data + '</pre>';
