@@ -69,7 +69,7 @@ require('http').createServer(function(request, response) {
       file.serve(request, response);
       var loglist = getLogFiles();
       console.log('loglist1');
-      console.log(loglist);
+      console.log(global.loglist);
     }
 
   }).resume();

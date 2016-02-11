@@ -82,6 +82,7 @@ function sort(myObj) {
 sfdcLogParser  = {
 	logevents : [],
 	nodes : {},
+	parentNodeIds : [],
 	soqlArr : {},
 	apexArr : {},
 	color : '#fff',
@@ -101,6 +102,10 @@ sfdcLogParser  = {
 		    	} else if (nodetype === 'DML_BEGIN') {
 		    		var sline = startline.split("|");
 			    	return nodetype + ':: ' + sline[4] + ':: ' + sline[5] + ':: ' + sline[6];
+		    	} else if (nodeid == 'X') {
+		    		return 'nodeX';
+		    	} else {
+		    		return 'no name node';
 		    	}
 		    }()),
 		    data :{},
@@ -251,27 +256,21 @@ sfdcLogParser  = {
 			return node;
 		}
 	},
+	getRoot: function() {
+		sfdcLogParser.addNewNode('X', 'EXECUTION_STARTED', '', '', '');
+		var nodes = sfdcLogParser.nodes;
+		var rootX = nodes['nodeX'];
+
+		return sfdcLogParser.loadChildren(rootX);
+		
+	},
 	getTree: function() {
-		var tree = [];		
-		var node0;
-		var i = 0;
-		var stillLooking = true;
-		do {
-		   var nname = "node" + i;
-		   if (sfdcLogParser.nodes[nname]) {
-		   	if (sfdcLogParser.nodes[nname].parentId === "") {
-		   		node0 = sfdcLogParser.nodes[nname];
-		   	} else {
-		   		node0 = sfdcLogParser.getParent(sfdcLogParser.nodes[nname]);
-		   		stillLooking = false;
-		   	}
-		   }
-		   i += 1;
-		} while (stillLooking);
-		if (node0) {
-			tree.push(sfdcLogParser.loadChildren(node0));
-			return tree[0];
-		}
+		var tree = [];
+		var nodes = sfdcLogParser.nodes;
+		var rootX = sfdcLogParser.getRoot();	
+		var pids = sfdcLogParser.parentNodeIds;
+
+		return rootX;
 	},
 	getTriggerCount : function () {
 	  var objarr = {};
@@ -311,7 +310,6 @@ sfdcLogParser  = {
 		}
 	},
 	loadChildren : function(node) {
-
 		for (var key in sfdcLogParser.nodes) {
 		  if (sfdcLogParser.nodes.hasOwnProperty(key)) {
 		    var nnode = sfdcLogParser.nodes[key];
@@ -412,9 +410,18 @@ sfdcLogParser  = {
 			            	} catch (e) {
 			            		exitval = ssplit;
 			            	}
-			         	//debuglog('ENTRY EXIT: ' + logevent.name + ':' + logevent.type);
 
-			            sfdcLogParser.addNewNode(ssplit[0], exitval, sline, lines[i], parentarr.last());
+					      var parentId = parentarr.last();
+					      if (parentId == '') {
+					      	// set root parent
+					      	parentId = 'X';
+					      }
+
+			         	//debuglog('ENTRY EXIT: ' + logevent.name + ':' + logevent.type);
+			         	if (parentarr.last() == '') {
+			         		sfdcLogParser.parentNodeIds.push('node' + ssplit[0]);
+			         	}
+			            sfdcLogParser.addNewNode(ssplit[0], exitval, sline, lines[i], parentId);
 		            } catch (e) {
 			         	debuglog('** ENTRY EXIT (missing entry): ' + logevent.name + ':' + logevent.type);
 			            sfdcLogParser.addNewNode(ssplit[0],logevent.name, logevent.type, 'missing entry line: ' + lines[i], parentarr.last());
@@ -447,7 +454,11 @@ sfdcLogParser  = {
 		            	} catch (e) {
 		            		exitval = ssplit;
 		            	}
-		      sfdcLogParser.addNewNode(ssplit[0], exitval, sline, 'none', parentarr.last());      
+		      var parentId = parentarr.last();
+		      if (parentId == '') {
+		      	parentId = 'X';
+		      }
+		      sfdcLogParser.addNewNode(ssplit[0], exitval, sline, 'none', parentId);      
 		    }
 		  }
 		  

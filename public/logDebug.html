@@ -1,0 +1,225 @@
+<html>
+<head>
+<title="SFDC Log Parser"/>
+<style>
+
+.link-stat {
+  display: block;
+  font-size: 14px;
+}
+.log-link {
+  display: inline;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+#details {
+  text-align: left;
+  display: block;
+  font-size: 14px;
+  margin: 20px;
+  float: right;
+  width: 70%;
+}
+#header {
+  font-weight: bold;
+  font-size: 16px;
+  margin: 20px;
+}
+#soql-tots {
+  margin: 0 20px;
+  float: left;
+}
+#trigg-tots{
+  margin: 0 20px;
+  float: left;
+}
+#qn {
+  margin-bottom: 10px;
+}
+#viewlog {
+  margin: 10px;
+}
+
+.node rect {
+  cursor: pointer;
+  fill: #fff;
+  fill-opacity: .5;
+  stroke: #ffffff;
+  stroke-width: 0.5px;
+}
+
+.node circle { 
+  fill: #fff; 
+  stroke: steelblue; 
+  stroke-width: 2px;
+}
+
+.node text {
+  font: 10px sans-serif;
+  pointer-events: none;
+}
+
+path.link {
+  fill: none;
+  stroke: #C0C0C0;
+  stroke-width: 0.5px;
+}
+
+</style>
+</head>
+<body>
+<div id="header">
+  <div id="qn"></div>
+  <div><select id="logselect" name="loglist"></select></div>
+  <div id="viewlog" onclick="showRawLog();">View Raw Log</div>
+</div>
+<div id="details"></div>
+<div id="soql-tots"></div>
+<div id="trigg-tots"></div>
+<div id="trigg-deets"></div>
+<div style="clear:both"></div>
+<div id="raw"></div>
+</body>
+<script src="/js/jquery-2.1.4.min.js"></script>
+<script src="/js/sfdcLogParser.js"></script>
+<script src="/d3/d3.min.js"></script>
+
+<script>
+    var margin = {top: 30, right: 20, bottom: 30, left: 20},
+    width = 960 - margin.left - margin.right,
+    barHeight = 20,
+    barWidth = width * .6;
+
+
+var i = 0,
+    duration = 400,
+    root;
+
+var tree = d3.layout.tree()
+    .nodeSize([0, 20]);
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var   svg = d3.select("#details").append("svg")
+    .attr("width", width + margin.left + margin.right)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+function showLogNodes(nodes) {
+    var i = 0;
+    var stillLooking = true;
+    var nodetext = ''
+    for (var p in nodes) {
+      if (nodes.hasOwnProperty(p)) {
+        nodetext += '<div>' + ': id ' + nodes[p].id + ': ' + nodes[p].name  + ': parentId ' + nodes[p].parentId + '</div>';
+      }
+    }
+    $('#details').html(nodetext);
+}
+
+// Toggle children on click.
+function click(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+  update(d);
+}
+
+function color(d) {
+  return d.color;
+}
+
+var rawLog;
+
+function loadLog(selectedLog) {
+  $('#soql-tots').html('Loading log...');
+  $('#trigg-tots').html('');
+  var rr = '/loghome/' + selectedLog;
+  log('Selected Log: ' + rr + '\n');
+  //$( '#lograw').html(rr + "\n");
+  var jqxhr = $.ajax( rr )
+      .done(function(data ) {
+      
+      rawLog = data;
+      sfdcLogParser.processLines(data);
+      log(" >> complete processing: " + sfdcLogParser.nodes.length);
+
+      // update soql totals
+      var objCountArr = sfdcLogParser.getSoqlObjectCount();    
+      var soqlCountList = reduce(function(s, x) {
+        return s + '<span class="link-stat">' + objCountArr[i].objName + ': <span class="log-link" onclick="showSoqlDeets(\''+objCountArr[i].objName+'\');">' + objCountArr[i].objCount + '</span></span>'},
+        objCountArr, "");
+
+      var soqlTotalCount = reduce(function(s, x) {
+        var x = objCountArr[i].objCount;
+        return s + x;},
+        objCountArr, 0);
+      $('#soql-tots').html('<h3>SOQL Object Count: ' + soqlTotalCount + '</h3>' + soqlCountList);
+
+      // update trigger totals
+      var triggerCount = sfdcLogParser.getTriggerCount();
+      var trigCountList = reduce(function(s,x ) {
+          return s + '<span class="link-stat">' + triggerCount[i].objName + ': <span class="log-link" onclick="showInfoVis();">' + triggerCount[i].objCount + '</span></span>'},
+          triggerCount, "");
+
+      $("#trigg-tots").html('<h3>Trigger Count</h3>' + trigCountList);
+      //$("#raw").html("<pre>" + JSON.stringify(sfdcLogParser.nodes, null,"--") + "</pre>");
+      showLogNodes(sfdcLogParser.nodes);
+
+
+
+    })
+  };
+
+  function showSoqlDeets(objName) {
+    $("#details").html(sfdcLogParser.getSoqlList(objName));  
+  }
+
+  function showInfoVis() {
+    log('showInfoVis');
+    document.location = "/?log=" + $( '#logselect' ).val();
+    $("#details").html("why why why");
+    //update(sfdcLogParser.getTree());
+
+  }
+
+  function showRawLog() {
+    $("#details").html('<pre>' + rawLog + '</pre>');      
+  }
+
+$( document ).ready(function() {
+  $("#qn").html('SFDC Log Boss');
+
+  var jqxhr = $.ajax( "/loglisting" )
+      .done(function(data ) {
+      
+      var loglist = data.split(",");
+      var optionsAsString = "<option value='not'>-- select --</option>";
+    for(var i = 0; i < loglist.length; i++) {
+      if (loglist[i].indexOf(".")>1) {
+        optionsAsString += "<option value='" + loglist[i] + "'>" + loglist[i] + "</option>";        
+      }
+    }
+    $( 'select[name="loglist"]' ).append( optionsAsString );
+  })
+
+  $( '#logselect' ).change(function() {
+    loadLog($( '#logselect' ).val())
+    });
+
+  if (location.search && location.search.split("=")[1]) {
+    var pval = location.search.split("=")[1];
+    log("log: " + pval);
+    loadLog(pval);
+  }
+
+});
+</script>
+
+</html>
