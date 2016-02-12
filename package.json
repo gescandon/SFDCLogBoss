@@ -1,0 +1,11 @@
+{
+  "name": "sfdc-log-boss",
+  "version": "0.0.0",
+  "description": "Salesforce log analyzer",
+  "main": "static.js",
+  "author": "Geoff Escandon",
+  "license": "ISC",
+  "devDependencies": {
+    "node-static": "*"
+  }
+}
