@@ -2,6 +2,7 @@
 
 
 var debugMode = true;
+var verboseMode = true;
 
 var CHILD_COLOR = "#9ACEEB";
 var CHILDREN_COLOR = "#1DACD6";
@@ -20,8 +21,6 @@ var validEvents = {
   CODE_UNIT_STARTED:{name: "CODE_UNIT_STARTED", type:"entry", color:"#FFFFFF"},
   EXECUTION_FINISHED:{name: "EXECUTION_FINISHED", type:"exit", color:"#ACE5EE", opener:"EXECUTION_STARTED"},
   EXECUTION_STARTED:{name: "EXECUTION_STARTED", type:"entry", color:"#ACE5EE"},
-  METHOD_ENTRY:{name: "METHOD_ENTRY", type:"entry", color:"#FFFFFF"},
-  METHOD_EXIT:{name: "METHOD_EXIT", type:"exit", color:"#FFFFFF", opener:"METHOD_ENTRY"},
   SOQL_EXECUTE_BEGIN:{name: "SOQL_EXECUTE_BEGIN", type:"entry", color:"#FFFF00"},
   SOQL_EXECUTE_END:{name: "SOQL_EXECUTE_END", type:"exit", color:"#FFFF00", opener:"SOQL_EXECUTE_BEGIN"},
   SOSL_EXECUTE_BEGIN:{name: "SOSL_EXECUTE_BEGIN", type:"entry", color:"#FFFF00"},
@@ -42,6 +41,12 @@ function log(msg) {
 
 function debuglog(msg) {
     if (debugMode) {
+    	console.log(msg);
+    }
+}  
+
+function verboselog(msg) {
+    if (verboseMode) {
     	console.log(msg);
     }
 }  
@@ -86,22 +91,39 @@ sfdcLogParser  = {
 	soqlArr : {},
 	apexArr : {},
 	color : '#fff',
+	isTimingType: function(ntype) {
+		var timingTypes = ['CODE_UNIT_STARTED','DML_BEGIN','SOQL_EXECUTE_BEGIN'];
+		if (timingTypes.indexOf(ntype) > -1 ) {
+			return true;
+		} else {
+			return false;
+		}
+	},
 	addNewNode : function (nodeid, nodetype, startline, endline, parentId) {
 		  //var ssplit = startline.split("|");
 		  //var esplit = endline.split("|");
 		  var nnode = {
 		    id : 'node' + nodeid,
 		    parentId : parentId ? 'node' + parentId : '',
+		    nodetype : nodetype,
 		    name : (function() {
 		    	if (nodetype === 'CODE_UNIT_STARTED') {
-		    		return nodetype + ':: ' + endline.split("|")[2];
+		    		var name = nodetype + ':: ' + endline.split("|")[2];
+			    	timing = sfdcLogParser.getTiming(startline, endline);
+		    		return name + ' ::: ' + timing;
 		    	} else if (nodetype === 'METHOD_ENTRY') {
 		    		return startline.split("|")[5];
 		    	} else if (nodetype === 'SOQL_EXECUTE_BEGIN') {
-		    		return nodetype + ':: ' + startline.toLowerCase().split("|")[5].split(" from ")[1].split(" ")[0];
+		    		var name = nodetype + ':: ' + startline.toLowerCase().split("|")[5].split(" from ")[1].split(" ")[0];
+		    		var rowcount = endline.toLowerCase().split("|")[3];
+		    		// append timing
+			    	timing = sfdcLogParser.getTiming(startline, endline);
+		    		return name + ' :: ' + rowcount  + ' ::: ' + timing;
 		    	} else if (nodetype === 'DML_BEGIN') {
 		    		var sline = startline.split("|");
-			    	return nodetype + ':: ' + sline[4] + ':: ' + sline[5] + ':: ' + sline[6];
+		    		var name = nodetype + ':: ' + sline[4] + ':: ' + sline[5] + ':: ' + sline[6];
+			    	timing = sfdcLogParser.getTiming(startline, endline);
+			    	return name + ' ::: ' + timing;
 		    	} else if (nodeid == 'X') {
 		    		return 'nodeX';
 		    	} else {
@@ -154,6 +176,7 @@ sfdcLogParser  = {
 		      } 
 
 		    }()),
+		    timing: sfdcLogParser.getTiming(startline, endline),
 		    trigger: (function(){
 
 		    	try {
@@ -264,6 +287,42 @@ sfdcLogParser  = {
 		return sfdcLogParser.loadChildren(rootX);
 		
 	},
+	getTiming: function(startline, endline) {
+		var timing = -1;
+	    try {
+	    	var stime = 0.0;
+	    	var etime = 0.0;
+			if (startline) stime = startline.split("|")[1].split("(")[1].split(")")[0];
+			if (endline) etime = endline.split("|")[0].split("(")[1].split(")")[0];
+			timing = Math.round((etime - stime) / 1000000);
+  		} catch (e) {
+  			debuglog('*** Timing Exception:: ' + e.message);
+  			debuglog('*** startline: ' + startline);
+  			debuglog('*** endline: ' + endline);
+  		}
+  		return timing;
+	},
+	getTimings: function() {
+		var nodes = sfdcLogParser.nodes;
+		var objarr = [];
+	  for (var key in nodes) {
+	    if (nodes.hasOwnProperty(key)) {
+	      var node = nodes[key];
+	      if (sfdcLogParser.isTimingType(node.nodetype)) {
+	      		verboselog('timing log: ' + node.name);
+	          objarr[node.name] = node.timing;
+	      }
+	    }
+	  }
+
+	  newObjArr = sort(objarr);
+	  //return output;
+	  var output = reduce(function(s, x) {
+	  return s + '<div class="soql-deet"><div style="margin: 5px; width:80%;float:left;">' + newObjArr[i].objName +  '	</div><div style="clear:both;"></div>'},
+	  	newObjArr, "");
+	  return output;
+
+	},
 	getTree: function() {
 		var tree = [];
 		var nodes = sfdcLogParser.nodes;
@@ -330,10 +389,7 @@ sfdcLogParser  = {
 	},
 	processLines : function(data) {
 		// reset
-		sfdcLogParser.logevents = [];
-		sfdcLogParser.nodes = {};
-		sfdcLogParser.soqlArr = {};
-		sfdcLogParser.apexArr = {};
+		sfdcLogParser.reset;
 		
 		//begin
 		  var lines = data.split('\n');
@@ -345,12 +401,14 @@ sfdcLogParser  = {
 
 		  for (var i=0;i<=lines.length;i++) {
 		    if (lines[i] != null) {
+		    	//verboselog(lines[i]);
+
 		      var elements = lines[i].split("|");
 		      var id = elements[1];
 		      if (id != null) {
 		        var logevent = validEvents[id.trim()];
 		        if (logevent == null) {
-		        	//debuglog('INVALID EVENT: ' + elements[1]);
+		        	// verboselog('INVALID EVENT: ' + elements[1]);
 		        } else {
 		          // process log id
 		          if (logevent.type == "entry") {
@@ -465,5 +523,11 @@ sfdcLogParser  = {
 	},
 	rawData : function (data) {
 		return '<pre>' + data + '</pre>';
+	},
+	reset : function() {
+		sfdcLogParser.logevents = [];
+		sfdcLogParser.nodes = {};
+		sfdcLogParser.soqlArr = {};
+		sfdcLogParser.apexArr = {};
 	}
 };

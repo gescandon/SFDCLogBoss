@@ -1,6 +1,7 @@
 <html>
 <head>
 <title="SFDC Log Parser"/>
+<meta http-equiv="Cache-control" content="public">
 <style>
 
 .link-stat {
@@ -73,6 +74,7 @@ path.link {
   <div id="qn"></div>
   <div><select id="logselect" name="loglist"></select></div>
   <div id="viewlog" onclick="showRawLog();">View Raw Log</div>
+  <div id="viewTimings" onclick="showTimings();">View Timings</div>
 </div>
 <div id="details"></div>
 <div id="soql-tots"></div>
@@ -287,10 +289,14 @@ function loadLog(selectedLog) {
     $("#details").html(sfdcLogParser.getSoqlList(objName));  
   }
 
+function showTimings(objName) {
+    $("#details").html(sfdcLogParser.getTimings());  
+  }
+
   function showInfoVis() {
     log('showInfoVis');
     document.location = "/?log=" + $( '#logselect' ).val();
-    $("#details").html("why why why");
+    $("#details").html("reloading...");
     //update(sfdcLogParser.getTree());
 
   }
@@ -316,7 +322,12 @@ $( document ).ready(function() {
   })
 
   $( '#logselect' ).change(function() {
-    loadLog($( '#logselect' ).val())
+      //$("#details").html("reloading...");
+        //svg.selectAll("*").remove();
+      loadLog($( '#logselect' ).val())
+//document.location = "/?log=" + $( '#logselect' ).val();
+      //$("#details").html("reloading...");
+
     });
 
   if (location.search && location.search.split("=")[1]) {
