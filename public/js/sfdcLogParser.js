@@ -525,3 +525,47 @@ sfdcLogParser  = {
 		sfdcLogParser.apexArr = {};
 	}
 };
+
+
+function loadLog(selectedLog) {
+  $('#soql-tots').html('Loading log...');
+  $('#trigg-tots').html('');
+      
+  var rr = '/loghome/' + selectedLog;
+  log('Selected Log: ' + rr + '\n');
+  //$( '#lograw').html(rr + "\n");
+  var jqxhr = $.ajax( rr )
+      .done(function(data ) {
+      
+      rawLog = data;
+      sfdcLogParser.processLines(data);
+      log(" >> complete processing");
+
+      // update soql totals
+      var objCountArr = sfdcLogParser.getSoqlObjectCount();    
+      var soqlCountList = reduce(function(s, x) {
+        return s + '<span class="link-stat">' + objCountArr[i].objName + ': <span class="log-link" onclick="showSoqlDeets(\''+objCountArr[i].objName+'\');">' + objCountArr[i].objCount + '</span></span>'},
+        objCountArr, "");
+
+      var soqlTotalCount = reduce(function(s, x) {
+        var x = objCountArr[i].objCount;
+        return s + x;},
+        objCountArr, 0);
+      $('#soql-tots').html('<h3>SOQL Object Count: ' + soqlTotalCount + '</h3>' + soqlCountList);
+
+      // update trigger totals
+      var triggerCount = sfdcLogParser.getTriggerCount();
+      var trigCountList = reduce(function(s,x ) {
+          return s + '<span class="link-stat">' + triggerCount[i].objName + ': <span class="log-link" onclick="showInfoVis();">' + triggerCount[i].objCount + '</span></span>'},
+          triggerCount, "");
+
+      $("#trigg-tots").html('<h3>Trigger Count</h3>' + trigCountList);
+      //$("#raw").html("<pre>" + JSON.stringify(sfdcLogParser.nodes, null,"--") + "</pre>");
+      
+      update(sfdcLogParser.getRoot());
+
+
+
+    })
+  };
+
