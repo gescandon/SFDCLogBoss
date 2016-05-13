@@ -107,28 +107,33 @@ sfdcLogParser  = {
 		    parentId : parentId ? 'node' + parentId : '',
 		    nodetype : nodetype,
 		    name : (function() {
+		    	var nname;
 		    	if (nodetype === 'CODE_UNIT_STARTED') {
 		    		var name = nodetype + ':: ' + endline.split("|")[2];
-			    	timing = sfdcLogParser.getTiming(startline, endline);
-		    		return name + ' ::: ' + timing;
+		    		nname = name;
 		    	} else if (nodetype === 'METHOD_ENTRY') {
-		    		return startline.split("|")[5];
+		    		nname = startline.split("|")[5];
 		    	} else if (nodetype === 'SOQL_EXECUTE_BEGIN') {
-		    		var name = nodetype + ':: ' + startline.toLowerCase().split("|")[5].split(" from ")[1].split(" ")[0];
 		    		var rowcount = endline.toLowerCase().split("|")[3];
-		    		// append timing
-			    	timing = sfdcLogParser.getTiming(startline, endline);
-		    		return name + ' :: ' + rowcount  + ' ::: ' + timing;
+		    		var name = nodetype + ':: ' + rowcount + ' :: ' + startline.toLowerCase().split("|")[5].split(" from ")[1].split(" ")[0];
+		    		nname = name
 		    	} else if (nodetype === 'DML_BEGIN') {
 		    		var sline = startline.split("|");
 		    		var name = nodetype + ':: ' + sline[4] + ':: ' + sline[5] + ':: ' + sline[6];
-			    	timing = sfdcLogParser.getTiming(startline, endline);
-			    	return name + ' ::: ' + timing;
+			    	nname = name;
 		    	} else if (nodeid == 'X') {
-		    		return 'nodeX';
+		    		nname = 'nodeX';
 		    	} else {
-		    		return 'no name node';
+		    		nname = 'no name node';
 		    	}
+		    	if (nname.length > 100) {
+		    		nname = nname.substr(0, 100) + '...';
+		    	}
+		    	if (sfdcLogParser.isTimingType(nodetype)) {
+		    		timing = sfdcLogParser.getTiming(startline, endline);
+		    		nname += ' ::: ' + timing;		    		
+		    	}
+		    	return nname;
 		    }()),
 		    data :{},
 		    children : [],
@@ -199,24 +204,14 @@ sfdcLogParser  = {
 		    }())    
 		  };
 
-		  // set data
-		  nnode.data["nodetype"] = nodetype;
-		  nnode.data["soqlObject"] = nnode.soqlObject;
-		  nnode.data["codeUnit"] = nnode.codeUnit;
-		  nnode.data["startline"] = startline;
-		  nnode.data["endline"] = endline;
-		  
-		  nnode.data["$area"] = 1;
-		  nnode.data["$dim"] = 1;
 		  try {
-		  	nnode.data["$color"] = validEvents[nodetype].color;  
+		  	nnode.color = validEvents[nodetype].color;  
 		    if (nnode.codeUnit.indexOf('trigger event') >= 0 ) {
-		      nnode.data["$color"] = TRIGGER_COLOR;
+		      nnode.color= TRIGGER_COLOR;
 		    }  
 		    if (nnode.codeUnit.indexOf(selectedTrigger) >= 0 ) {
-		      nnode.data["$color"] = TARGET_TRIGGER_COLOR;
+		      nnode.color = TARGET_TRIGGER_COLOR;
 		    }      
-		    nnode.color = nnode.data["$color"]
 		  } catch (e) {
 		    log('Color Exception: ' + nnode.nodetype + ":: " +e.name + ': ' + e.message); 
 		    log(nnode.id);
@@ -388,8 +383,7 @@ sfdcLogParser  = {
 		return node;
 	},
 	processLines : function(data) {
-		// reset
-		sfdcLogParser.reset;
+		sfdcLogParser.reset();
 		
 		//begin
 		  var lines = data.split('\n');

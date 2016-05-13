@@ -114,6 +114,7 @@ function update(source) {
   svg.selectAll("*").remove();
   source.y0 = 0;
   source.x0 = 0;
+
   // Compute the flattened node list. TODO use d3.layout.hierarchy.
   var nodes = tree.nodes(source);
 
@@ -148,13 +149,8 @@ function update(source) {
       .attr("width", barWidth)
       .style("fill", color)
       .style("stroke-width", function(d) {
-        if (d.name === "SOQL_EXECUTE_BEGIN") {
+        if (d.nodetype === "SOQL_EXECUTE_BEGIN") {
           return "1.5px";
-        }
-      })
-      .style("stroke", function(d) {
-        if (d.name === "SOQL_EXECUTE_BEGIN") {
-          return "green";
         }
       })
       .on("click", click);
@@ -278,7 +274,7 @@ function loadLog(selectedLog) {
 
       $("#trigg-tots").html('<h3>Trigger Count</h3>' + trigCountList);
       //$("#raw").html("<pre>" + JSON.stringify(sfdcLogParser.nodes, null,"--") + "</pre>");
-      update(sfdcLogParser.getTree());
+      update(sfdcLogParser.getRoot());
 
 
 
@@ -297,7 +293,7 @@ function showTimings(objName) {
     log('showInfoVis');
     document.location = "/?log=" + $( '#logselect' ).val();
     $("#details").html("reloading...");
-    //update(sfdcLogParser.getTree());
+    update();
 
   }
 
