@@ -19,6 +19,8 @@ var selectedTrigger = '__null__';
 var validEvents = {
   CODE_UNIT_FINISHED:{name: "CODE_UNIT_FINISHED", type:"exit", color:"#FFFFFF", opener:"CODE_UNIT_STARTED"},
   CODE_UNIT_STARTED:{name: "CODE_UNIT_STARTED", type:"entry", color:"#FFFFFF"},
+  CALLOUT_REQUEST:{name:"CALLOUT_REQUEST", type:"entry",color:"#FFFFFF"},
+  CALLOUT_RESPONSE:{name:"CALLOUT_RESPONSE", type:"exit",color:"#FFFFFF", opener:"CALLOUT_REQUEST"},
   EXECUTION_FINISHED:{name: "EXECUTION_FINISHED", type:"exit", color:"#ACE5EE", opener:"EXECUTION_STARTED"},
   EXECUTION_STARTED:{name: "EXECUTION_STARTED", type:"entry", color:"#ACE5EE"},
   SOQL_EXECUTE_BEGIN:{name: "SOQL_EXECUTE_BEGIN", type:"entry", color:"#FFFF00"},
@@ -92,7 +94,7 @@ sfdcLogParser  = {
 	apexArr : {},
 	color : '#fff',
 	isTimingType: function(ntype) {
-		var timingTypes = ['CODE_UNIT_STARTED','DML_BEGIN','SOQL_EXECUTE_BEGIN'];
+		var timingTypes = ['CODE_UNIT_STARTED','DML_BEGIN','SOQL_EXECUTE_BEGIN','CALLOUT_REQUEST'];
 		if (timingTypes.indexOf(ntype) > -1 ) {
 			return true;
 		} else {
@@ -111,6 +113,9 @@ sfdcLogParser  = {
 		    	if (nodetype === 'CODE_UNIT_STARTED') {
 		    		var name = nodetype + ':: ' + endline.split("|")[2];
 		    		nname = name;
+		    	} else if (nodetype === 'CALLOUT_REQUEST') {
+		    		var fullcallout = startline.split("|")[4];
+		    		nname = nodetype + ':: ' + fullcallout.split("hondaweb.com")[1];
 		    	} else if (nodetype === 'METHOD_ENTRY') {
 		    		nname = startline.split("|")[5];
 		    	} else if (nodetype === 'SOQL_EXECUTE_BEGIN') {
@@ -430,6 +435,7 @@ sfdcLogParser  = {
 		            logevents.push(sline); // put it back on for now.
 
 		            var isExitPair = false;
+		            debuglog(logevent.name + "::" + logevent.opener);
 		            if (logevent.opener == ssplit[2]) {
 		            	isExitPair = true
 			         	if (logevent.name == 'METHOD_EXIT') {
